@@ -53,10 +53,14 @@ io.on('connection', (socket) => {
   });
 
   // Handle sending messages to a specific room
-  socket.on('messageToRoom', ({ roomName, message }) => {
-    console.log(`Message to room ${roomName}: ${message}`);
-    io.to(roomName).emit('message', message);
-    appLogs.push(`Message to room ${roomName}: ${message}`)
+  socket.on('messageToRoom', ({ roomName, name, message }) => {
+    console.log(`Message to room ${roomName} from ${name}: ${message}`);
+    io.to(roomName).emit('message', {
+      message,
+      name, 
+      socketId: socket.id
+    });
+    appLogs.push(`Message to room ${roomName}: ${message}`);
   });
 
   // Handle disconnection
