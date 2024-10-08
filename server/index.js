@@ -45,18 +45,24 @@ io.on('connection', (socket) => {
     socket.join(roomName);
     socketToNameMapping[socket.id] = Name;
     console.log(`User ${socket.id} joined room: ${roomName}`);
-    socket.to(roomName).emit('message', `User ${socket.id} has joined the room`);
+    if (!activeRooms.find(room=>room===roomName)) {
+      activeRooms.push(roomName);
+      roomToUserMapping[roomName] = [{user,id:socket.id}]
+    }else{
+      roomToUserMapping[roomName].push({user,id:socket.id});
+    }
+    socket.to(roomName).emit({
+      message: `User ${socket.id} has joined the room`, //socket message
+      members: roomToUserMapping[roomName] // details of members
+    });
     appLogs.push(`${Name} joins room ${room} with socketId ${socket.id}`);
-
-    if (!activeRooms.find(room=>room===roomName)) activeRooms.push(roomName);
-
   });
 
   // Handle sending messages to a specific room
   socket.on('messageToRoom', ({ roomName, name, message }) => {
     console.log(`Message to room ${roomName} from ${name}: ${message}`);
     io.to(roomName).emit('message', {
-      message,
+      message, //socket message
       name, 
       socketId: socket.id
     });
@@ -68,6 +74,7 @@ io.on('connection', (socket) => {
     delete socketToNameMapping[socket.id]
     appLogs.push(`A user disconnected: ${socket.id}`);
     console.log('A user disconnected:', socket.id);
+    // TODO: delete user from storage as well
   });
 });
 
