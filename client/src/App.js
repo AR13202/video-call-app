@@ -1,24 +1,33 @@
 import './App.css';
-import { useState } from 'react'; // Add this
+import { useEffect, useMemo } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import io from 'socket.io-client'; // Add this
+import io from 'socket.io-client';
 import Home from './pages/Home';
 import Room from './pages/Room';
-
-const socket = io.connect('http://localhost:4000'); // Add this -- our server will run on port 4000, so we connect to it from here
+import useStore from './store/store';
 
 function App() {
-  const [username, setUsername] = useState(''); // Add this
-  const [room, setRoom] = useState(''); // Add this
+  const {setSocket} = useStore();
+  useEffect(()=>{
+    const socket = io.connect('http://localhost:4000');
+    console.log("socket Connected --> ",socket);
+    setSocket(socket);
 
+    return (()=>{
+      socket.disconnect();
+      console.log("<---Socket Disconnected--->");
+    })
+
+  },[])
   return (
     <Router>
         <Routes>
-          <Route path='/' element={<Home username={username} setUsername={setUsername} room={room} setRoom={setRoom} socket={socket} />}/>
+          <Route path='/' element={<Home/>}/>
           <Route path='/room' element={<Room/>}/>
         </Routes>
     </Router>
   );
 }
+
 
 export default App;

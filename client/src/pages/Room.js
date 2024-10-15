@@ -4,8 +4,12 @@ import Mic from '../svgs/Mic';
 import Call from '../svgs/Call';
 import Copy from '../svgs/Copy';
 import Canvas from '../svgs/Canvas';
+import useStore from '../store/store';
 
 const Room = () => {
+
+    const {username, room ,socket, activeRooms, setUserName, setRoom, setActiveRooms, roomMembers, setRoomMembers} = useStore();
+
   return (
     <div className='flex flex-col lg:flex-row w-[100dvw] h-[100dvh]'>
         <div className='flex flex-col lg:w-[75%] bg-black'>
@@ -40,7 +44,9 @@ const Room = () => {
         </div>
         <div className='flex flex-col lg:w-[25%] border'>
             <div className='flex flex-col w-full lg:h-[90%] border'>
-
+                {roomMembers.map((member)=>(
+                    <p key={member.id}>{member.Name}</p>
+                ))}
             </div>
             <div className='flex w-full lg:h-[10%] border'></div>
         </div>

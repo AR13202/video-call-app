@@ -1,5 +1,5 @@
 const express = require('express');
-const app = express();
+const cors = require('cors');
 const http = require('http')
 const  { Server } = require('socket.io');
 const PORT = 4000;
@@ -10,9 +10,16 @@ const activeRooms = [];
 const roomToUserMapping = {};
 const userToRoomMapping = {};
 
-const cors = require('cors');
+const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  cors: {
+    origin: 'http://localhost:3000', // Allow requests from this origin
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['my-custom-header'],
+    credentials: true
+  }
+});
 app.use(cors());
 
 app.get('/api', (req, res) => {
@@ -40,6 +47,10 @@ app.get('/data', (req,res)=>{
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
 
+  socket.on('success:connection',()=>{
+    io.emit('activeRooms',activeRooms)
+  });
+
   // Join/Create a room
   socket.on('joinRoom', (roomName, Name) => {
     socket.join(roomName);
@@ -47,15 +58,16 @@ io.on('connection', (socket) => {
     console.log(`User ${socket.id} joined room: ${roomName}`);
     if (!activeRooms.find(room=>room===roomName)) {
       activeRooms.push(roomName);
-      roomToUserMapping[roomName] = [{user,id:socket.id}]
+      roomToUserMapping[roomName] = [{Name,id:socket.id}]
     }else{
-      roomToUserMapping[roomName].push({user,id:socket.id});
+      roomToUserMapping[roomName].push({Name,id:socket.id});
     }
-    socket.to(roomName).emit({
+    userToRoomMapping[socket.id] = roomName;
+    io.to(roomName).emit('message',{
       message: `User ${socket.id} has joined the room`, //socket message
       members: roomToUserMapping[roomName] // details of members
     });
-    appLogs.push(`${Name} joins room ${room} with socketId ${socket.id}`);
+    appLogs.push(`${Name} joins room ${roomName} with socketId ${socket.id}`);
   });
 
   // Handle sending messages to a specific room
@@ -71,7 +83,13 @@ io.on('connection', (socket) => {
 
   // Handle disconnection
   socket.on('disconnect', () => {
-    delete socketToNameMapping[socket.id]
+    delete socketToNameMapping[socket.id];
+    roomToUserMapping[userToRoomMapping[socket.id]] = roomToUserMapping[userToRoomMapping[socket.id]].filter((data)=>data.id!=socket.id); 
+    if(roomToUserMapping[userToRoomMapping[socket.id]].length==0) {
+      delete roomToUserMapping[userToRoomMapping[socket.id]];
+      activeRooms = activeRooms.filter((data)=>data!=userToRoomMapping[socket.id]);
+    }
+    delete userToRoomMapping[socket.id];
     appLogs.push(`A user disconnected: ${socket.id}`);
     console.log('A user disconnected:', socket.id);
     // TODO: delete user from storage as well
@@ -104,10 +122,10 @@ app-flow
     -> appLog push
 4. onLeaving a Room
     -> appLogPush
-    -> socketToNameMapping remove
-    -> check active Rooms
-    -> roomToUserMapping Update
-    -> userToRoomMapping deletion.
+    -> socketToNameMapping remove --> done
+    -> check active Rooms -->
+    -> roomToUserMapping Update --> done
+    -> userToRoomMapping deletion. --> done
 
 ----client-side-data-output----
 
@@ -120,4 +138,8 @@ app-flow
 3. error Handling:
   -> check number of users in room before joining.
   -> should not be more than 8 users.
+
+-----conventions-------
+1. one userName should not be able to join more than 1 room.
+2. no two rooms should have same name.
 */
