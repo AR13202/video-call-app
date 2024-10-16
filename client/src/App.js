@@ -1,5 +1,5 @@
 import './App.css';
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import io from 'socket.io-client';
 import Home from './pages/Home';
@@ -18,7 +18,7 @@ function App() {
       console.log("<---Socket Disconnected--->");
     })
 
-  },[])
+  },[setSocket])
   return (
     <Router>
         <Routes>

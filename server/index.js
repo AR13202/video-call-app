@@ -6,7 +6,7 @@ const PORT = 4000;
 
 const socketToNameMapping = {};
 const appLogs = [];
-const activeRooms = [];
+let activeRooms = [];
 const roomToUserMapping = {};
 const userToRoomMapping = {};
 
@@ -73,7 +73,7 @@ io.on('connection', (socket) => {
   // Handle sending messages to a specific room
   socket.on('messageToRoom', ({ roomName, name, message }) => {
     console.log(`Message to room ${roomName} from ${name}: ${message}`);
-    io.to(roomName).emit('message', {
+    io.to(roomName).emit('room:message', {
       message, //socket message
       name, 
       socketId: socket.id
@@ -84,10 +84,15 @@ io.on('connection', (socket) => {
   // Handle disconnection
   socket.on('disconnect', () => {
     delete socketToNameMapping[socket.id];
-    roomToUserMapping[userToRoomMapping[socket.id]] = roomToUserMapping[userToRoomMapping[socket.id]].filter((data)=>data.id!=socket.id); 
-    if(roomToUserMapping[userToRoomMapping[socket.id]].length==0) {
+    roomToUserMapping[userToRoomMapping[socket.id]] = 
+        roomToUserMapping[userToRoomMapping[socket.id]]?.filter((data)=>data.id!=socket.id); 
+    if(roomToUserMapping[userToRoomMapping[socket.id]]?.length==0) {
       delete roomToUserMapping[userToRoomMapping[socket.id]];
-      activeRooms = activeRooms.filter((data)=>data!=userToRoomMapping[socket.id]);
+      activeRooms = activeRooms.filter((data)=> data!==userToRoomMapping[socket.id])
+    }else{
+      io.to(userToRoomMapping[socket.id]).emit('update',{
+        members:roomToUserMapping[userToRoomMapping[socket.id]]
+      })
     }
     delete userToRoomMapping[socket.id];
     appLogs.push(`A user disconnected: ${socket.id}`);
@@ -142,4 +147,7 @@ app-flow
 -----conventions-------
 1. one userName should not be able to join more than 1 room.
 2. no two rooms should have same name.
+3. Not more than 9 users can join the call.
+4. two users cannot have same name.
+
 */
