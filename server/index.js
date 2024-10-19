@@ -15,7 +15,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL || 'http://localhost:3000', // Allow requests from this origin
+    origin: process.env.CLIENT_URL, // Allow requests from this origin
     methods: ['GET', 'POST'],
     allowedHeaders: ['my-custom-header'],
     credentials: true

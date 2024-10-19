@@ -8,8 +8,9 @@ import useStore from './store/store';
 
 function App() {
   const {setSocket} = useStore();
+  console.log("first",process.env.REACT_APP_SERVER_URL)
   useEffect(()=>{
-    const socket = io.connect(process.env.SERVER_URL || 'http://localhost:4000');
+    const socket = io.connect(process.env.REACT_APP_SERVER_URL);
     console.log("socket Connected --> ",socket);
     setSocket(socket);
 
