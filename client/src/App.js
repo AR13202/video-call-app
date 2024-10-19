@@ -11,7 +11,7 @@ function App() {
   console.log("first",process.env.REACT_APP_SERVER_URL)
   useEffect(()=>{
     // const socket = io.connect(process.env.REACT_APP_SERVER_URL);
-    const socket = io('https://video-call-app-sable.vercel.app');
+    const socket = io('https://video-call-app-p4jj.onrender.com');
     console.log("socket Connected --> ",socket);
     setSocket(socket);
 
