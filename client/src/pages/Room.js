@@ -45,23 +45,28 @@ const Room = () => {
     },[messages, setRoomMembers, socket]);
     console.log("messages",messages);
 
+    const handleCopyJoiningLink = (text) => {
+        navigator.clipboard.writeText(text).then(
+            () => {
+              console.log('Text successfully copied to clipboard!');
+            },
+            (err) => {
+              console.error('Failed to copy text: ', err);
+            }
+        );
+    }
+
   return (
     <div className='flex flex-col lg:flex-row w-[100dvw] h-[100dvh]'>
         <div className='flex flex-col lg:w-[75%] bg-black'>
-            <div className='flex flex-wrap justify-center items-center w-full lg:h-[90%] bg-black rounded-md overflow-y-auto p-2'>
-                <div className='w-1/3 h-1/3 border border-slate-500 rounded bg-slate-600 p-1'></div>
-                <div className='w-1/3 h-1/3 border border-slate-500 rounded bg-slate-600 p-1'></div>
-                <div className='w-1/3 h-1/3 border border-slate-500 rounded bg-slate-600 p-1'></div>
-                <div className='w-1/3 h-1/3 border border-slate-500 rounded bg-slate-600 p-1'></div>
-                <div className='w-1/3 h-1/3 border border-slate-500 rounded bg-slate-600 p-1'></div>
-                <div className='w-1/3 h-1/3 border border-slate-500 rounded bg-slate-600 p-1'></div>
-                <div className='w-1/3 h-1/3 border border-slate-500 rounded bg-slate-600 p-1'></div>
-                <div className='w-1/3 h-1/3 border border-slate-500 rounded bg-slate-600 p-1'></div>
-                <div className='w-1/3 h-1/3 border border-slate-500 rounded bg-slate-600 p-1'></div>
+            <div className='flex flex-wrap justify-center items-center gap-1 w-full lg:h-[90%] bg-black rounded-md overflow-y-auto p-2'>
+                {roomMembers.map((member)=>(
+                    <div key={member.id} className='w-1/2 aspect-[3/2] border border-slate-500 flex justify-center items-center text-white rounded bg-slate-600 p-1 text-[20px]'>{member.Name}</div>
+                ))}
             </div>
             <div className='flex w-full lg:h-[10%] p-2 bg-black'>
                 <div className='bg-slate-200 rounded w-full h-full flex justify-center items-center p-2 gap-3'>
-                    <div className='w-[15%] h-full flex justify-center items-center hover:underline cursor-pointer text-[15px] font-medium gap-2'>
+                    <div onClick={()=>handleCopyJoiningLink(room)} className='w-[15%] h-full flex justify-center items-center hover:underline cursor-pointer text-[15px] font-medium gap-2'>
                         <Copy/>
                         <span>Copy Joining Info</span>
                     </div>
@@ -78,9 +83,13 @@ const Room = () => {
             </div>
         </div>
         <div className='flex flex-col lg:w-[25%] border'>
-            <div className='flex flex-col w-full lg:h-[90%] border'>
-                {roomMembers.map((member)=>(
-                    <p key={member.id}>{member.Name}</p>
+            <div className='flex flex-col w-full lg:h-[90%] border gap-4 p-1'>
+                {messages.map((data)=>(
+                    // TODO: need to send timestamp for unique key 
+                    <div key={data.socketId+data.message} className=' bg-slate-300 rounded p-3 flex flex-col gap-1'>
+                        <div className='text-[18px] font-semibold'>{data.name}</div>
+                        <div className='text-[16px]'>{data.message}</div>
+                    </div>
                 ))}
             </div>
             <div className='flex w-full lg:h-[10%] border p-1'>

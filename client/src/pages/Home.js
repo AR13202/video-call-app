@@ -6,7 +6,6 @@ import { useNavigate } from "react-router-dom";
 const Home = () => {
     const navigate = useNavigate();
     const {username, room ,socket, activeRooms, setUserName, setRoom, setActiveRooms, roomMembers, setRoomMembers} = useStore();
-
     const getActiveRooms = useCallback(() => {
       if(socket){
         socket.emit('success:connection');
@@ -29,7 +28,7 @@ const Home = () => {
       }
       getActiveRooms();
 
-      navigate('/room');
+      navigate(`/room/${roomId}`);
     },[getActiveRooms, navigate, setRoomMembers, socket]);
 
     useEffect(()=>{
