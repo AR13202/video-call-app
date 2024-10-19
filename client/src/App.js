@@ -10,7 +10,11 @@ function App() {
   const {setSocket} = useStore();
   console.log("first",process.env.REACT_APP_SERVER_URL)
   useEffect(()=>{
-    const socket = io.connect(process.env.REACT_APP_SERVER_URL);
+    // const socket = io.connect(process.env.REACT_APP_SERVER_URL);
+    const socket = io('https://video-call-app-sable.vercel.app', {
+      transports: ['websocket', 'polling'],
+      withCredentials: true,
+    });
     console.log("socket Connected --> ",socket);
     setSocket(socket);
 
