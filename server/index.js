@@ -1,8 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const http = require('http')
-const  { Server } = require('socket.io');
+const http = require('http');
+const { Server } = require('socket.io');
 const PORT = 4000;
 
 const socketToNameMapping = {};
@@ -18,11 +18,19 @@ const io = new Server(server, {
     origin: process.env.CLIENT_URL, // Allow requests from this origin
     methods: ['GET', 'POST'],
     allowedHeaders: ['my-custom-header'],
-    credentials: true
-  }
+    credentials: true,
+  },
 });
 
-app.use(cors());
+// CORS configuration for the Express server
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL, // Allow requests from this origin
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+  })
+);
 
 app.get('/api', (req, res) => {
   res.json({
@@ -34,7 +42,7 @@ app.get('/', (req, res) => {
   res.send('Socket.io server with room functionality is running!');
 });
 
-app.get('/data', (req,res)=>{
+app.get('/data', (req, res) => {
   res.send({
     appLogs,
     activeRooms,
@@ -44,13 +52,12 @@ app.get('/data', (req,res)=>{
   });
 });
 
-
 // Listen for incoming connections on the Socket.io server
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
 
-  socket.on('success:connection',()=>{
-    io.emit('activeRooms',activeRooms)
+  socket.on('success:connection', () => {
+    io.emit('activeRooms', activeRooms);
   });
 
   // Join/Create a room
@@ -58,16 +65,16 @@ io.on('connection', (socket) => {
     socket.join(roomName);
     socketToNameMapping[socket.id] = Name;
     console.log(`User ${socket.id} joined room: ${roomName}`);
-    if (!activeRooms.find(room=>room===roomName)) {
+    if (!activeRooms.find((room) => room === roomName)) {
       activeRooms.push(roomName);
-      roomToUserMapping[roomName] = [{Name,id:socket.id}]
-    }else{
-      roomToUserMapping[roomName].push({Name,id:socket.id});
+      roomToUserMapping[roomName] = [{ Name, id: socket.id }];
+    } else {
+      roomToUserMapping[roomName].push({ Name, id: socket.id });
     }
     userToRoomMapping[socket.id] = roomName;
-    io.to(roomName).emit('message',{
-      message: `User ${socket.id} has joined the room`, //socket message
-      members: roomToUserMapping[roomName] // details of members
+    io.to(roomName).emit('message', {
+      message: `User ${socket.id} has joined the room`, // socket message
+      members: roomToUserMapping[roomName], // details of members
     });
     appLogs.push(`${Name} joins room ${roomName} with socketId ${socket.id}`);
   });
@@ -76,9 +83,9 @@ io.on('connection', (socket) => {
   socket.on('messageToRoom', ({ roomName, name, message }) => {
     console.log(`Message to room ${roomName} from ${name}: ${message}`);
     io.to(roomName).emit('room:message', {
-      message, //socket message
-      name, 
-      socketId: socket.id
+      message, // socket message
+      name,
+      socketId: socket.id,
     });
     appLogs.push(`Message to room ${roomName}: ${message}`);
   });
@@ -86,15 +93,16 @@ io.on('connection', (socket) => {
   // Handle disconnection
   socket.on('disconnect', () => {
     delete socketToNameMapping[socket.id];
-    roomToUserMapping[userToRoomMapping[socket.id]] = 
-        roomToUserMapping[userToRoomMapping[socket.id]]?.filter((data)=>data.id!=socket.id); 
-    if(roomToUserMapping[userToRoomMapping[socket.id]]?.length==0) {
+    roomToUserMapping[userToRoomMapping[socket.id]] = roomToUserMapping[userToRoomMapping[socket.id]]?.filter(
+      (data) => data.id != socket.id
+    );
+    if (roomToUserMapping[userToRoomMapping[socket.id]]?.length == 0) {
       delete roomToUserMapping[userToRoomMapping[socket.id]];
-      activeRooms = activeRooms.filter((data)=> data!==userToRoomMapping[socket.id])
-    }else{
-      io.to(userToRoomMapping[socket.id]).emit('update',{
-        members:roomToUserMapping[userToRoomMapping[socket.id]]
-      })
+      activeRooms = activeRooms.filter((data) => data !== userToRoomMapping[socket.id]);
+    } else {
+      io.to(userToRoomMapping[socket.id]).emit('update', {
+        members: roomToUserMapping[userToRoomMapping[socket.id]],
+      });
     }
     delete userToRoomMapping[socket.id];
     appLogs.push(`A user disconnected: ${socket.id}`);
@@ -103,10 +111,10 @@ io.on('connection', (socket) => {
   });
 });
 
-
 server.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT}`);
 });
+
 
 /*
 app-flow
