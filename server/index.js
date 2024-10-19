@@ -23,7 +23,7 @@ const io = new Server(server, {
 });
 
 const allowCors = fn => async (req, res) => {
-  res.setHeader('Access-Control-Allow-Credentials', true)
+  // res.setHeader('Access-Control-Allow-Credentials', true)
   res.setHeader('Access-Control-Allow-Origin', '*')
   if (req.method === 'OPTIONS') {
     res.status(200).end()
