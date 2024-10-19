@@ -13,24 +13,29 @@ const userToRoomMapping = {};
 
 const app = express();
 const server = http.createServer(app);
+const allowedOrigins = ['https://video-call-app-y4bz.vercel.app'];
+
+// CORS configuration for the Express server
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  }
+}));
+
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL, // Allow requests from this origin
+    origin: 'https://video-call-app-y4bz.vercel.app', // Allow requests from this origin
     methods: ['GET', 'POST'],
-    allowedHeaders: ['my-custom-header'],
     credentials: true,
   },
 });
 
-// CORS configuration for the Express server
-app.use(
-  cors({
-    origin: process.env.CLIENT_URL, // Allow requests from this origin
-    methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true,
-  })
-);
+
+
 
 app.get('/api', (req, res) => {
   res.json({
