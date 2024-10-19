@@ -22,16 +22,6 @@ const io = new Server(server, {
   }
 });
 
-const allowCors = fn => async (req, res) => {
-  // res.setHeader('Access-Control-Allow-Credentials', true)
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  if (req.method === 'OPTIONS') {
-    res.status(200).end()
-    return
-  }
-  return await fn(req, res)
-}
-
 app.use(cors());
 
 app.get('/api', (req, res) => {
@@ -113,12 +103,6 @@ io.on('connection', (socket) => {
   });
 });
 
-const handler = (req, res) => {
-  const d = new Date()
-  res.end(d.toString())
-}
-
-module.exports = allowCors(handler)
 
 server.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT}`);
