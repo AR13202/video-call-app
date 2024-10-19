@@ -48,7 +48,6 @@ app.get('/api', (req, res) => {
 });
 
 app.get('/', (req, res) => {
-  allowCors();
   res.send('Socket.io server with room functionality is running!');
 });
 
@@ -120,6 +119,13 @@ io.on('connection', (socket) => {
     // TODO: delete user from storage as well
   });
 });
+
+const handler = (req, res) => {
+  const d = new Date()
+  res.end(d.toString())
+}
+
+module.exports = allowCors(handler)
 
 server.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT}`);
