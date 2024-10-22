@@ -7,7 +7,7 @@ import Canvas from '../svgs/Canvas';
 import useStore from '../store/store';
 import { useNavigate } from 'react-router-dom';
 
-const config = { iceServers: [{ urls: "stun:stun.stunprotocol.org" }] }
+const config = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] }
 const Room = () => {
     const videoContainerRef = useRef(); 
     const { username, room, socket, setRoomMembers, audio, video, setStream } = useStore();
@@ -194,16 +194,11 @@ const Room = () => {
         console.log("answer handler called");
         const ans = new RTCSessionDescription(answer);
         const tempConnection = peerConnections;
-        // tempConnection[id].setRemoteDescription(ans)
-        // if (tempConnection[id].signalingState === "have-local-offer") {
-            tempConnection[id].setRemoteDescription(ans)
-                .then(() => {
-                    console.log('Remote description set successfully');
-                })
-                .catch((err) => console.error("Error setting remote description:", err));
-        // } else {
-            // console.warn("Attempted to set remote description in the wrong state:", tempConnection[id].signalingState);
-        // }
+        tempConnection[id].setRemoteDescription(ans)
+            .then(() => {
+                console.log('Remote description set successfully');
+            })
+            .catch((err) => console.error("Error setting remote description:", err));
         setPeerConnections(tempConnection);
     },[peerConnections])
 
