@@ -8,10 +8,9 @@ import useStore from './store/store';
 
 function App() {
   const {setSocket} = useStore();
-  console.log("first",process.env.REACT_APP_SERVER_URL)
   useEffect(()=>{
     // const socket = io.connect(process.env.REACT_APP_SERVER_URL);
-    const socket = io('https://video-call-app-p4jj.onrender.com');
+    const socket = io.connect('http://localhost:4000/');
     console.log("socket Connected --> ",socket);
     setSocket(socket);
 
