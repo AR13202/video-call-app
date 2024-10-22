@@ -195,15 +195,15 @@ const Room = () => {
         const ans = new RTCSessionDescription(answer);
         const tempConnection = peerConnections;
         // tempConnection[id].setRemoteDescription(ans)
-        if (tempConnection[id].signalingState === "have-local-offer") {
+        // if (tempConnection[id].signalingState === "have-local-offer") {
             tempConnection[id].setRemoteDescription(ans)
                 .then(() => {
                     console.log('Remote description set successfully');
                 })
                 .catch((err) => console.error("Error setting remote description:", err));
-        } else {
-            console.warn("Attempted to set remote description in the wrong state:", tempConnection[id].signalingState);
-        }
+        // } else {
+            // console.warn("Attempted to set remote description in the wrong state:", tempConnection[id].signalingState);
+        // }
         setPeerConnections(tempConnection);
     },[peerConnections])
 
