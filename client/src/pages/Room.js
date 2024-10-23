@@ -7,7 +7,10 @@ import Canvas from '../svgs/Canvas';
 import useStore from '../store/store';
 import { useNavigate } from 'react-router-dom';
 
-const config = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] }
+const config = { iceServers: [{ urls: [
+    "stun:stun.l.google.com:19302",
+    "stun:global.stun.twilio.com:3478",
+] }] }
 const Room = () => {
     const videoContainerRef = useRef(); 
     const { username, room, socket, setRoomMembers, audio, video, setStream } = useStore();
@@ -156,16 +159,16 @@ const Room = () => {
             localStream.getTracks().forEach(track => {
                 tempPeerConnection[id].addTrack(track, localStream);
                 console.log('added local stream to peer')
-                // if (track.kind === 'audio') {
-                //     audioTrackSent[id] = track;
-                //     if (!videoInfo)
-                //         audioTrackSent[id].enabled = false;
-                // }
-                // else {
-                //     videoTrackSent[id] = track;
-                //     if (!audioInfo)
-                //         videoTrackSent[id].enabled = false
-                // }
+                if (track.kind === 'audio') {
+                    audioTrackSent[id] = track;
+                    if (!videoInfo)
+                        audioTrackSent[id].enabled = false;
+                }
+                else {
+                    videoTrackSent[id] = track;
+                    if (!audioInfo)
+                        videoTrackSent[id].enabled = false
+                }
             })
 
         })
@@ -180,20 +183,21 @@ const Room = () => {
         })
         .catch((err)=>console.error("error setting rtcPeerDescription",err));
 
-    },[peerConnections, room, socket]);
+    },[audioTrackSent, peerConnections, room, socket, videoTrackSent]);
 
     const handleNewIceCandidate = useCallback((candidate, id) => {
-        console.log("new candidate received");
+        if(candidate){console.log("new candidate received");
         const newCandidate = new RTCIceCandidate(candidate);
         const tempConnection = peerConnections;
         tempConnection[id].addIceCandidate(newCandidate).catch((err) => console.error("newicecandidate", err));    
-        setPeerConnections(tempConnection);
+        setPeerConnections(tempConnection);}
     }, [peerConnections]);
 
     const handleVideoAnswer = useCallback((answer,id)=>{
-        console.log("answer handler called");
+        console.log("answer handler called",answer);
         const ans = new RTCSessionDescription(answer);
         const tempConnection = peerConnections;
+        console.log("tempConnection",tempConnection[id]);
         tempConnection[id].setRemoteDescription(ans)
             .then(() => {
                 console.log('Remote description set successfully');
@@ -203,11 +207,11 @@ const Room = () => {
     },[peerConnections])
 
     useEffect(()=>{
-        socket.on('join-room', ({id, message, members})=>{
+        socket.on('join-room', async ({id, message, members})=>{
             console.log("message",message);
             const tempConnection = peerConnections;
             if(members){
-                members.forEach((mem)=>{
+                await members.forEach((mem)=>{
                     tempConnection[mem.id] = new RTCPeerConnection(config);
                     tempConnection[mem.id].onicecandidate = function (event) {
                         if(event.candidate){

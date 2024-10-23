@@ -95,7 +95,7 @@ io.on('connection', (socket) => {
     // Forward the offer to all other users in the room except the sender
     const videoInfo  = socketToNameMapping[socket.id].video;
     const micInfo = socketToNameMapping[socket.id].audio;
-    const name = socketToNameMapping[socket.id].name;
+    const name = socketToNameMapping[socket.id].Name;
     socket.to(id).emit('video-offer', offer, socket.id, name, videoInfo, micInfo );
   });
 
