@@ -195,15 +195,17 @@ const Room = () => {
 
     const handleVideoAnswer = useCallback((answer,id)=>{
         console.log("answer handler called",answer);
-        const ans = new RTCSessionDescription(answer);
         const tempConnection = peerConnections;
-        console.log("tempConnection",tempConnection[id]);
-        tempConnection[id].setRemoteDescription(ans)
+        if(tempConnection[id].signalingState !== "stable"){
+            const ans = new RTCSessionDescription(answer);
+            console.log("tempConnection",tempConnection[id]);
+            tempConnection[id].setRemoteDescription(ans)
             .then(() => {
                 console.log('Remote description set successfully');
             })
             .catch((err) => console.error("Error setting remote description:", err));
-        setPeerConnections(tempConnection);
+            setPeerConnections(tempConnection);
+        }
     },[peerConnections])
 
     useEffect(()=>{
