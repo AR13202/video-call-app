@@ -77,7 +77,7 @@ io.on('connection', (socket) => {
     if (!activeRooms.find((room) => room === roomName)) {
       activeRooms.push(roomName);
       roomToUserMapping[roomName] = [{ Name, id: socket.id, video, audio}];
-    } else {
+    } else if(!roomToUserMapping[roomName].find(item => item.id === socket.id)) {
       roomToUserMapping[roomName].push({ Name, id: socket.id, video, audio});
     }
     userToRoomMapping[socket.id] = roomName;
