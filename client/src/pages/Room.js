@@ -6,21 +6,33 @@ import Copy from '../svgs/Copy';
 import Canvas from '../svgs/Canvas';
 import useStore from '../store/store';
 import { useNavigate } from 'react-router-dom';
+import usePeer from '../hooks/usePeer';
+import useMediaStream from '../hooks/useMediaStream';
+import Peer from 'peerjs';
 
 const config = { iceServers: [{ urls: [
     "stun:stun1.l.google.com:19302",
     "stun:stun2.l.google.com:19302",
     "stun:global.stun.twilio.com:3478",
 ] }] }
+
+
+/*
+ create peer -> send peerId to server to join room -> 
+ other user will receive that peerId -> 
+ call on that peerId with your stream -> 
+ call.on() -> we will receive incoming stream from above function ->
+ set the stream in your local state with desired audiio/video option ->
+ on call leave remove user from local state and close peerConnection.
+*/
+
 const Room = () => {
     const videoContainerRef = useRef(); 
-    const { username, room, socket, setRoomMembers, audio, video, setStream } = useStore();
+    const [myPeerId,setMyPeerId] = useState('');
+    const { username, room, socket, setRoomMembers, roomMembers, setMyPeer, audio, video, setStream, myPeer, stream } = useStore();
     const navigate = useNavigate();
     const [messages, setMessages] = useState([]);
     const [messageInput, setMessageInput] = useState('');
-    const [peerConnections, setPeerConnections] = useState({});
-    const audioTrackSent = {};
-    const videoTrackSent = {};
     const openMediaDevices = async (constraints) => {
         return await navigator.mediaDevices.getUserMedia(constraints);
     };
@@ -56,7 +68,16 @@ const Room = () => {
 
     useEffect(() => {
         socket.on('update', ({ members }) => {
-            setRoomMembers(members);
+            const newRoomMembers = members.map((member) => {
+                // Find the corresponding roomMember in roomMembers
+                const existingMember = roomMembers.find(
+                    (roomMember) => roomMember.id === member.id
+                );
+        
+                // Merge member with existingMember (if it exists), prioritizing values from member
+                return { ...existingMember, ...member };
+            });
+            setRoomMembers(newRoomMembers);
         });
 
         socket.on('room:message', ({ message, name, socketId }) => {
@@ -67,7 +88,7 @@ const Room = () => {
             socket.off('update');
             socket.off('room:message');
         };
-    }, [setRoomMembers, socket]);
+    }, [roomMembers, setRoomMembers, socket]);
 
     const handleCopyJoiningLink = (text) => {
         navigator.clipboard.writeText(text).then(
@@ -76,220 +97,74 @@ const Room = () => {
         );
     };
 
+
+    const handleJoinRoom = useCallback(async ({id, message, members, peerId})=>{
+        console.log("message",message,members,peerId,stream);
+        if(myPeer){
+            console.log("myPeer",myPeer);
+            const call = myPeer.call(peerId, stream);
+            console.log("sending call",call)
+            call.on('stream',(incomingStream)=>{
+                console.log(incomingStream)
+                console.log("incoming stream");
+                console.log("roomMembers at handleJoin",roomMembers);
+                const temp = [...roomMembers,{incomingCall:incomingStream,audio:true,video:true,id:peerId}];
+                // temp.forEach((mem)=>{
+                //     if(mem.peerId===peerId){
+                //         mem.incomingCall = incomingStream;
+                //     }
+                // });
+                console.log("roomMembers after handleJoin",temp);
+                setRoomMembers(temp);
+            })
+        }else{
+            console.error("MyPeer not found");
+        }
+    },[myPeer, roomMembers, setRoomMembers, stream])
+
     useEffect(() => {
+        const peer = new Peer(undefined, { config });
+        setMyPeer(peer);
+        peer.on('open', (id) => {
+            console.log(`your peer id is ${id}`)
+            setMyPeerId(id);
+            socket.emit('join-room', room, username, audio, video, id)
+        })
         const initializeMediaStream = async () => {
             await getVideoAndAudio();
         };
         initializeMediaStream();
-    }, [getVideoAndAudio]);
+    }, [audio, getVideoAndAudio, room, setMyPeer, socket, username, video]);
 
-    const handleUserJoined = useCallback(() => {
-        socket.emit('join-room', room, username,video, audio);
-    },[audio, room, socket, username, video]);
-
-    const startCall = useCallback((connections) => {
-        navigator.mediaDevices.getUserMedia({ video: video, audio: audio })
-        .then(localStream => {
-            const localVideoElement = document.getElementById('video-self'); 
-            localVideoElement.srcObject = localStream;
-            localVideoElement.muted = true;
-
-            localStream.getTracks().forEach(track => {
-                for (let key in connections) {
-                    connections[key].addTrack(track, localStream);
-                    if (track.kind === 'audio'){
-                        audioTrackSent[key] = track;
-                    }
-                    if(track.kind ==='video'){
-                        videoTrackSent[key] = track;
-                    }
-                }
+    useEffect(()=>{
+        if(myPeer && stream){
+            myPeer.on('call',(call)=>{
+                const {peer: callerId} = call;
+                call.answer(stream);
+                call.on("stream",(incomingStream)=>{
+                    const temp = [...roomMembers,{incomingCall:incomingStream,audio:true,video:true,id:callerId}];
+                    console.log("roomMembers after useEffect",temp);
+                    setRoomMembers(temp);
+                })
             })
-
-        })
-        .catch((err)=>console.error("start call error",err));
-    },[audio, audioTrackSent, video, videoTrackSent])
-
-    const handleJoinRoom = useCallback(async ({id, message, members})=>{
-        console.log("message",message,members);
-        const tempConnection = peerConnections;
-        if(members.length>1){
-            await members.forEach((mem)=>{
-                tempConnection[mem.id] = new RTCPeerConnection(config);
-                tempConnection[mem.id].onicecandidate = function (event) {
-                    if(event.candidate){
-                        console.log("icecandidate fired for if", mem.id);
-                        socket.emit('new-icecandidate', event.candidate,mem.id,room);
-                    }
-                };
-                tempConnection[mem.id].ontrack = function (event){
-                    if(!document.getElementById(`remote-stream-${mem.id}`)){
-                        console.log("track event fired",mem.id);
-                        const videoele = document.createElement('video');
-                        videoele.autoplay = true;
-                        videoele.playsInline = true;
-                        videoele.id = `remote-stream-${mem.id}`;
-                        videoele.className = "border border-black rounded-md";
-                        videoele.srcObject = event.streams[0];
-                        videoContainerRef.current.appendChild(videoele);
-                    }
-                }
-
-                tempConnection[mem.id].onremovetrack = function (event) {
-                    if (document.getElementById(`remote-stream-${mem.id}`)) {
-                        document.getElementById(`remote-stream-${mem.id}`).remove();
-                    }
-                }
-
-                tempConnection[mem.id].onnegotiationneeded = function (event) {
-                    tempConnection[mem.id].createOffer()
-                        .then(function (offer) {
-                            return tempConnection[mem.id].setLocalDescription(offer);
-                        })
-                        .then(function () {
-                            console.log("calling video-offer");
-                            socket.emit('video-offer', tempConnection[mem.id].localDescription, mem.id,room); 
-                        })
-                        .catch((err)=>console.error("error on negotiation",err));
-                };
-            });
-            setPeerConnections(tempConnection);
-            startCall(tempConnection);
-        }else{
-            console.log("waiting for others to join");
-            navigator.mediaDevices.getUserMedia({video:video,audio:audio})
-        .then(localStream => {
-            const localVideoElement = document.getElementById('video-self'); 
-            localVideoElement.srcObject = localStream;
-        })
-        .catch((error)=>console.log("local stream error",error));
         }
-    },[audio, peerConnections, room, socket, startCall, video])
-
-    const handleVideoOffer = useCallback((offer,id,name,videoInfo,audioInfo)=>{
-        if (!offer || !offer.type) {
-            console.error("Received invalid offer:", offer);
-            return;
-        }
-        if(!peerConnections[id]){
-            console.log("video offer received",offer,id,name,videoInfo,audioInfo);
-            // const tempPeerConnection = peerConnections;
-            const newConnection = new RTCPeerConnection(config);
-            setPeerConnections((prev)=>({...prev,[id]:newConnection}));
-            newConnection[id].onicecandidate = function (event) {
-                if(event.candidate) {
-                    console.log("icecandiadte fired");
-                    socket.emit('new-icecandidate',event.candidate,id,room);
-                }
-            };
-            newConnection[id].ontrack = function (event){
-                if(!document.getElementById(`remote-stream-${id}`)){
-                    console.log("track event fired",id);
-                    const videoele = document.createElement('video');
-                    videoele.autoplay = true;
-                    videoele.playsInline = true;
-                    videoele.id = `remote-stream-${id}`;
-                    videoele.className = "border border-black rounded-md";
-                    videoele.srcObject = event.streams[0];
-                    videoContainerRef.current.appendChild(videoele);
-                }
-            };
-            newConnection[id].onremovetrack = function (event) {
-                if (document.getElementById(`remote-stream-${id}`)) {
-                    console.log("track removed");
-                    document.getElementById(`remote-stream-${id}`).remove();
-                }
-            };
-            newConnection[id].onnegotiationneeded = function () {
-
-                peerConnections[id].createOffer()
-                    .then(function (offer) {
-                        return peerConnections[id].setLocalDescription(offer);
-                    })
-                    .then(function () {
-                        socket.emit('video-offer', peerConnections[id].localDescription, id,room);
-                    })
-                    .catch((err)=>console.error("received error on nego",err));
-            };
-        }
-
-        let desc = new RTCSessionDescription(offer);
-            
-        peerConnections[id].setRemoteDescription(desc)
-        .then(() => { return navigator.mediaDevices.getUserMedia({video:videoInfo, audio:audioInfo}) })
-        .then((localStream) => {
-            localStream.getTracks().forEach(track => {
-                peerConnections[id].addTrack(track, localStream);
-                console.log('added local stream to peer')
-            })
-        })
-        .then(() => {
-            return peerConnections[id].createAnswer();
-        })
-        .then(answer => {
-            return peerConnections[id].setLocalDescription(answer);
-        })
-        .then(() => {
-            socket.emit('video-answer', peerConnections[id].localDescription, id,room);
-        })
-        .catch((err)=>console.error("error setting rtcPeerDescription",err));
-
-    },[peerConnections, room, socket]);
-
-    const handleNewIceCandidate = useCallback((candidate, id) => {
-        if(!peerConnections[id]){
-            console.warn(`Peer Connection not found for id: ${id}`);
-            return;
-        }
-        if(peerConnections[id].remoteDescription){
-            console.log("new candidate received",candidate);
-            const newCandidate = new RTCIceCandidate(candidate);
-            peerConnections[id].addIceCandidate(newCandidate).catch((err) => console.error("newicecandidate", err));    
-        }else{
-            console.warn(`Remote Description not setted for id: ${id}`);
-        }
-    }, [peerConnections]);
-
-    const handleVideoAnswer = useCallback(async (answer,id)=>{
-        console.log("answer handler called",answer);
-        // const tempConnection = peerConnections;
-        console.log("signalingState",peerConnections[id].signalingState);
-        // if(peerConnections[id].signalingState !== "stable"){
-            const ans = new RTCSessionDescription(answer);
-            console.log("ans",ans);
-            await peerConnections[id].setRemoteDescription(ans)
-            .then(() => {
-                console.log('Remote description set successfully');
-            })
-            .catch((err) => console.error("Error setting remote description:", err));
-            // setPeerConnections(peerConnections);
-        // }
-    },[peerConnections])
+    },[myPeer, roomMembers, setRoomMembers, stream])
 
     useEffect(()=>{
         socket.on('join-room', handleJoinRoom)
-        socket.on('video-offer',handleVideoOffer);
-        socket.on('new-icecandidate',handleNewIceCandidate);
-        socket.on('video-answer',handleVideoAnswer);
         return(()=>{
-            socket.off('join-room');
-            socket.off('video-offer');
-            socket.off('new-icecandidate');
-            socket.off('video-answer');
+            socket.off('join-room',handleJoinRoom);
         })
-    },[handleJoinRoom, handleNewIceCandidate, handleVideoAnswer, handleVideoOffer, handleUserJoined, socket])
-    useEffect(()=>{
-        handleUserJoined();
-    },[])
-    useEffect(()=>{
-        console.log("peerConnection",peerConnections)
-    },[peerConnections])
+    },[handleJoinRoom,socket, myPeer, stream, roomMembers, setRoomMembers])
 
     return (
         <div className='flex flex-col lg:flex-row w-[100dvw] h-[100dvh]'>
             <div className='flex flex-col lg:w-[75%] bg-black'>
                 <div ref={videoContainerRef} className='flex flex-wrap justify-center items-center gap-1 w-full lg:h-[90%] bg-black rounded-md overflow-y-auto p-2'>
-                    <video id="video-self" className="border border-black rounded-md" autoPlay playsInline></video>
+                    {stream && <video src={stream} id="video-self" className="border border-black rounded-md" autoPlay playsInline></video>}
+                    {roomMembers.map((member) => (
+                        <video className='w-1/3 h-1/3' key={member.id} ref={(video) => { if (video) video.srcObject = member.incomingCall }} autoPlay playsInline></video>
+                    ))}
                 </div>
                 <div className='flex w-full lg:h-[10%] p-2 bg-black'>
                     <div className='bg-slate-200 rounded w-full h-full flex justify-center items-center p-2 gap-3'>

@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 
 const Home = () => {
     const navigate = useNavigate();
-    const {username, room ,socket, setUserName, setRoom, setActiveRooms, setRoomMembers, stream, setStream, setVideo, setAudio, video, audio} = useStore();
+    const {username, room ,socket, setUserName, setRoom, setActiveRooms, setStream, setVideo, setAudio, video, audio} = useStore();
     
     const getActiveRooms = useCallback(() => {
       if(socket){
@@ -19,18 +19,9 @@ const Home = () => {
 
     /* socket handling */
     const joinRoomSocketConnection = useCallback(async (roomId,user) => {
-      // if(socket){
-      //   socket.emit('joinRoom', roomId, user);
-        
-      //   socket.on('message',({message, members})=>{
-      //     console.log("message",message,members);
-      //     setRoomMembers(members);
-      //   });
-      // }
       getActiveRooms();
-
       navigate(`/room/${roomId}`);
-    },[getActiveRooms, navigate, setRoomMembers, socket]);
+    },[getActiveRooms, navigate]);
     /* --------------- */
 
     /* handling streams */

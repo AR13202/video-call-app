@@ -14,7 +14,7 @@ const userToRoomMapping = {};
 const app = express();
 const server = http.createServer(app);
 
-const allowedOrigins = ['https://video-call-app-y4bz.vercel.app', 'http://localhost:3000'];
+const allowedOrigins = ['https://video-call-app-y4bz.vercel.app', 'http://localhost:3000','http://localhost:3001'];
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -70,49 +70,24 @@ io.on('connection', (socket) => {
   });
 
   // Join/Create a room
-  socket.on('join-room', (roomName, Name,video,audio) => {
+  socket.on('join-room', (roomName, Name,video,audio, peerId) => {
     socket.join(roomName);
     socketToNameMapping[socket.id] = {Name, video, audio};
     console.log(`User ${socket.id} joined room: ${roomName}`);
     if (!activeRooms.find((room) => room === roomName)) {
       activeRooms.push(roomName);
-      roomToUserMapping[roomName] = [{ Name, id: socket.id, video, audio}];
+      roomToUserMapping[roomName] = [{ Name, id: socket.id, video, audio, peerId}];
     } else if(!roomToUserMapping[roomName].find(item => item.id === socket.id)) {
-      roomToUserMapping[roomName].push({ Name, id: socket.id, video, audio});
+      roomToUserMapping[roomName].push({ Name, id: socket.id, video, audio, peerId});
     }
     userToRoomMapping[socket.id] = roomName;
-    io.to(roomName).emit('join-room', {
+    socket.broadcast.to(roomName).emit('join-room', {
       id:socket.id,
       message: `User ${socket.id} has joined the room`, // socket message
       members: roomToUserMapping[roomName], // details of members
+      peerId: peerId
     });
     appLogs.push(`${Name} joins room ${roomName} with socketId ${socket.id}`);
-  });
-
-   // Handle the offer from a user
-  socket.on('video-offer', (offer, id, roomId) => {
-    console.log(`Received offer from ${socket.id} for room ${roomId}`);
-    // Forward the offer to all other users in the room except the sender
-    const videoInfo  = socketToNameMapping[socket.id].video;
-    const micInfo = socketToNameMapping[socket.id].audio;
-    const name = socketToNameMapping[socket.id].Name;
-    socket.to(id).emit('video-offer', offer, socket.id, name, videoInfo, micInfo );
-  });
-
-  // Handle the answer from a user
-  socket.on('video-answer', (answer,id,roomId) => {
-      // const { roomId, answer, to } = data;
-      console.log(`Received answer from ${socket.id} for room ${roomId}`);
-      // Forward the answer to the specific user who sent the offer
-      socket.to(id).emit('video-answer',answer, socket.id);
-  });
-
-  // Handle the ICE candidates from a user
-  socket.on('new-icecandidate', (candidate,id,roomId) => {
-      // const { roomId, candidate } = data;
-      console.log(`Received ICE candidate from ${socket.id} for room ${roomId}`);
-      // Forward the ICE candidate to all other users in the room except the sender
-      socket.to(id).emit('new-icecandidate', candidate, socket.id );
   });
 
   // Handle sending messages to a specific room
