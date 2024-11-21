@@ -161,7 +161,7 @@ const Room = () => {
         <div className='flex flex-col lg:flex-row w-[100dvw] h-[100dvh]'>
             <div className='flex flex-col lg:w-[75%] bg-black'>
                 <div ref={videoContainerRef} className='flex flex-wrap justify-center items-center gap-1 w-full lg:h-[90%] bg-black rounded-md overflow-y-auto p-2'>
-                    {stream && <video src={stream} id="video-self" className="border border-black rounded-md" autoPlay playsInline></video>}
+                    {stream && <video src={stream} id="video-self" className="border border-black rounded-md" autoPlay playsInline muted></video>}
                     {roomMembers.map((member) => (
                         <video className='w-1/3 h-1/3' key={member.id} ref={(video) => { if (video) video.srcObject = member.incomingCall }} autoPlay playsInline></video>
                     ))}
