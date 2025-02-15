@@ -2,16 +2,19 @@ import './App.css';
 import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import io from 'socket.io-client';
-import Home from './pages/Home';
-import Room from './pages/Room';
-import useStore from './store/store';
+import Home from './pages/Home.jsx';
+import Room from './pages/Room.jsx';
+import userStore from './store/store.tsx';
 
 function App() {
-  const {setSocket} = useStore();
+  const {setSocket} = userStore();
+
   useEffect(()=>{
     const socket = io.connect(process.env.REACT_APP_SERVER_URL);
     // const socket = io.connect('http://localhost:4000/');
+
     console.log("socket Connected --> ",socket);
+
     setSocket(socket);
 
     return (()=>{
@@ -32,3 +35,18 @@ function App() {
 
 
 export default App;
+
+/*
+  * store socket to store
+  * redirect to room
+  * get stream
+  * create peer
+  * update store with userData
+  * emit socket join-room
+  * receive socket.on(user-connected)
+  * receive peerConnection => peer.on('call',()=>{})
+  * update members in store
+  * handleToogleStreamConstraints => audio,video
+  * 
+  * *  
+*/

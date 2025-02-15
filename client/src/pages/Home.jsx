@@ -1,84 +1,63 @@
 import { useCallback, useEffect } from "react";
-import useStore from "../store/store";
 import generateRoomId from "../utils/generateRoomId";
 import { useNavigate } from "react-router-dom";
+import useMediaStream from "../hooks/useMediaStream.tsx";
+import userStore from "../store/store.tsx";
 
 const Home = () => {
     const navigate = useNavigate();
-    const {username, room ,socket, setUserName, setRoom, setActiveRooms, setStream, setVideo, setAudio, video, audio} = useStore();
-    
-    const getActiveRooms = useCallback(() => {
-      if(socket){
-        socket.emit('success:connection');
-
-        socket.on('activeRooms', (activeRooms) => {
-          setActiveRooms(activeRooms);
-        });
-      }
-    },[setActiveRooms, socket]);
+    const {username, room , setUserName, setRoom, setVideo, setAudio, video, audio} = userStore();
+    const mediaStreamFunction = useMediaStream(); 
 
     /* socket handling */
-    const joinRoomSocketConnection = useCallback(async (roomId,user) => {
-      getActiveRooms();
+    const joinRoomSocketConnection = useCallback(async (roomId) => {
+      mediaStreamFunction.getActiveRooms();
       navigate(`/room/${roomId}`);
-    },[getActiveRooms, navigate]);
+    },[mediaStreamFunction, navigate]);
     /* --------------- */
 
-    /* handling streams */
-    const openMediaDevices = async (constraints,videoSrc) => {
-      return await navigator.mediaDevices.getUserMedia(constraints).then(local=>videoSrc.srcObject=local);
-    }
-
-    const getVideoAndAudio = useCallback( async (ele) =>{
-      try {
-          if(audio || video){
-            const stream = await openMediaDevices({'video':video,'audio':audio},ele);
-            console.log('Got MediaStream:', stream);
-            setStream(stream);
-          }else{
-            setStream(null);
-            ele.srcObject = null;
-          }
-      } catch(error) {
-          console.error('Error accessing media devices.', error);
-      }
-    },[audio, setStream, video]);
-
     useEffect(()=>{
+      handleStream({audioToggle:audio,videoToggle:video});  
+    },[])
+
+    const handleStream = ({audioToggle,videoToggle})=>{
       const videoSrc = document.getElementById("video-self");
-      getVideoAndAudio(videoSrc);
-    },[getVideoAndAudio, video, audio]);
+      mediaStreamFunction.getUserStream({audio:audioToggle,video:videoToggle}).then((stream)=>{videoSrc.srcObject = stream}).catch((err)=>console.log(err));
+      console.log("setting stream")
+    };
     /* ---------------- */
 
-    useEffect(()=>{
-      getActiveRooms();
-    },[getActiveRooms]);
+    // useEffect(()=>{
+    //   getActiveRooms();
+    // },[getActiveRooms]);
 
     const createRoom = () => {
       const res = generateRoomId();
       console.log(res);
       setRoom(res);
-      joinRoomSocketConnection(res, username);  
+      joinRoomSocketConnection(res);  
     }
 
     const joinRoom = () => {
       console.log({room,username});
-      joinRoomSocketConnection(room, username);   
+      joinRoomSocketConnection(room);   
 
     }
 
     return (
-      <div className={"flex w-[100dvw] h-[100dvh]"}> 
-        <div className="flex flex-col gap-3 w-[30%] h-full border bg-slate-100 justify-center items-center px-20">
-            <video id="video-self" className="border border-black rounded-md" autoPlay muted playsInline></video>
+      <div className={"flex w-[100dvw] h-[100dvh] flex-col lg:flex-row"}> 
+        <div className="flex flex-col gap-3 w-full h-full lg:w-[30%] lg:h-full border bg-slate-100 justify-center items-center px-20">
+            <video id="video-self" className="border border-black rounded-md" autoPlay muted={audio} playsInline></video>
             <div className="flex gap-3">
               <button onClick={()=>{
-                if(video) setVideo(false);
-                else setVideo(true);
+                const tempVideo = !video;
+                setVideo(tempVideo);
+                handleStream({videoToggle:tempVideo,audioToggle:audio});
               }} className={`px-2 py-1 rounded border ${video ? 'bg-slate-700':'bg-red-700'} text-white cursor-pointer hover:border hover:border-black`}>Video</button>
               <button onClick={()=>{
-                  if(audio) setAudio(false);
-                  else setAudio(true);
+                  const tempAudio = !audio; 
+                  setAudio(tempAudio);
+                  handleStream({videoToggle:video,audioToggle:tempAudio});
                 }} className={`px-2 py-1 rounded border ${audio ?'bg-slate-700':'bg-red-700'} text-white cursor-pointer hover:border hover:border-black`}>Audio</button>
             </div>
             <h1 className="text-[30px] font-bold text-slate-700 font-sans">Video Call App</h1>
@@ -90,7 +69,7 @@ const Home = () => {
             <button onClick={()=>joinRoom()} className="px-3 py-1 rounded text-white bg-slate-700 hover:bg-opacity-90">Join Room</button>
 
         </div>
-        <div className="flex w-[70%] h-full border justify-center items-center">
+        <div className="hidden lg:flex lg:w-[70%] lg:h-full border justify-center items-center">
             <img src="/assets/bg-2.jpg" alt="video-call-illustration" className="w-full h-fit"/>
         </div>
       </div> 
