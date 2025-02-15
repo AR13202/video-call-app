@@ -20,6 +20,7 @@ const useSockets = () => {
         });
         console.log("sending metaData + stream for id",socketId,peerId)
         call.on('stream',(incomingStream:MediaStream)=>{
+          console.log("received stream",incomingStream);
             const temp:roomMemberType[] = [
                 ...store.roomMembers,
                 {

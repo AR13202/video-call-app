@@ -40,6 +40,7 @@ const usePeer = () => {
                 call.answer(store.stream as MediaStream|undefined);
                 call.on("stream",(incomingStream)=>{
                     // Get the current room members from the store
+                    console.log("incoming Stream",incomingStream);
                     const currentMembers = store.roomMembers;
 
                     // Check if the member already exists
