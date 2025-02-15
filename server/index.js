@@ -5,16 +5,33 @@ const http = require('http');
 const { Server } = require('socket.io');
 const PORT = 4000;
 
-const socketToNameMapping = {};
+const socketToUser = {};
 const appLogs = [];
 let activeRooms = [];
-const roomToUserMapping = {};
-const userToRoomMapping = {};
 
 const app = express();
 const server = http.createServer(app);
 
 const allowedOrigins = ['https://video-call-app-y4bz.vercel.app', 'http://localhost:3000','http://localhost:3001'];
+
+const removeEmptyRooms = () => {
+  const roomsMap = {};
+  activeRooms.map((room)=>{
+    roomsMap[room] = 0;
+  })
+
+  Object.keys(socketToUser).map((socket)=>{
+    roomsMap[socketToUser[socket].room] = roomsMap[socketToUser[socket].room] + 1;
+  })
+
+  activeRooms = [];
+  Object.keys(roomsMap).map((room)=>{
+    if(roomsMap[room]>0){
+      activeRooms.push(room);
+    }
+  })
+  
+}
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -55,9 +72,7 @@ app.get('/data', (req, res) => {
   res.send({
     appLogs,
     activeRooms,
-    socketToNameMapping,
-    roomToUserMapping,
-    userToRoomMapping,
+    socketToUser,
   });
 });
 
@@ -73,15 +88,9 @@ io.on('connection', (socket) => {
   // Join/Create a room
   socket.on('join-room', (roomName, Name,video,audio, peerId) => {
     socket.join(roomName);
-    socketToNameMapping[socket.id] = {Name, video, audio,peerId};
+    socketToUser[socket.id] = {name:Name, video, audio,peerId,room:roomName};
     console.log(`User ${socket.id} joined room: ${roomName}`);
-    // if (!activeRooms.find((room) => room === roomName)) {
-    //   activeRooms.push(roomName);
-    //   roomToUserMapping[roomName] = [{ Name, id: socket.id, video, audio, peerId}];
-    // } else if(!roomToUserMapping[roomName].find(item => item.id === socket.id)) {
-    //   roomToUserMapping[roomName].push({ Name, id: socket.id, video, audio, peerId});
-    // }
-    // userToRoomMapping[socket.id] = roomName;
+    if (!activeRooms.includes(roomName)) activeRooms.push(roomName);
     socket.broadcast.to(roomName).emit('join-room', {
       socketId:socket.id,
       name:Name,
@@ -104,28 +113,21 @@ io.on('connection', (socket) => {
   });
 
   // Handle disconnection
-  socket.on('user-disconnected', () => {
-    delete socketToNameMapping[socket.id];
-    roomToUserMapping[userToRoomMapping[socket.id]] = roomToUserMapping[userToRoomMapping[socket.id]]?.filter(
-      (data) => data.id != socket.id
-    );
-    if (roomToUserMapping[userToRoomMapping[socket.id]]?.length == 0) {
-      delete roomToUserMapping[userToRoomMapping[socket.id]];
-      activeRooms = activeRooms.filter((data) => data !== userToRoomMapping[socket.id]);
-    } else {
-      io.to(userToRoomMapping[socket.id]).emit('user-disconnected', {
-        members: roomToUserMapping[userToRoomMapping[socket.id]],
-      });
-    }
-    delete userToRoomMapping[socket.id];
+  socket.on('user-disconnected', (roomId) => {
+    const temp = socketToUser[socket.id];
+    delete socketToUser[socket.id];
     appLogs.push(`A user disconnected: ${socket.id}`);
-    console.log('A user disconnected:', socket.id);
-    // TODO: delete user from storage as well
+    removeEmptyRooms(); // remove roomId from array if no one is present in room.
+    socket.broadcast.to(roomId).emit('user-disconnected',{
+      socketId:socket.id,
+      // peerId: temp.peerId, //TODO: undefined
+      name: temp.name
+    });
   });
 
-  socket.on('user-toggle-stream', (peerId, roomId,audio,video) => {
-    socketToNameMapping[peerId] = {...socketToNameMapping[peerId],audio,video};
-    socket.broadcast.to(roomId).emit('user-toggle-stream', peerId,audio,video);
+  socket.on('user-toggle-stream', (peerId, roomId,audio,video,socketId) => {
+    socketToUser[peerId] = {...socketToUser[peerId],audio,video};
+    socket.broadcast.to(roomId).emit('user-toggle-stream', {socketId,peerId,audio,video});
   });
 });
 
@@ -136,30 +138,22 @@ server.listen(PORT, () => {
 
 /*
 app-flow
-    const socketToNameMapping = {};
+    const socketToUser = {};
     const appLogs = [];
     const activeRooms = [];
-    const roomToUserMapping = {};
-    const userToRoomMapping = {};
 1. user creates a room
-    -> addition in socketToNameMapping
+    -> addition in socketToUser
     -> appLog push
     -> activeRoom update
-    -> roomToUserMapping = {[roomName]:[{socket.id,name}]};
-    -> userToRoomMapping
 2. User Joins Room
-    -> addition in socketToNameMapping
+    -> addition in socketToUser
     -> appLog push
-    -> roomToUserMapping = {[roomName]:[...prev,{socket.id,name}]};
-    -> userToRoomMapping
 3. On sending Message
     -> appLog push
 4. onLeaving a Room
     -> appLogPush
-    -> socketToNameMapping remove --> done
+    -> socketToUser remove --> done
     -> check active Rooms -->
-    -> roomToUserMapping Update --> done
-    -> userToRoomMapping deletion. --> done
 
 ----client-side-data-output----
 

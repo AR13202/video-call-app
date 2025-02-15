@@ -11,8 +11,8 @@ const userStore = create<UserStoreType>((set) => ({
     activeRooms: [],
     roomMembers: [],
     stream: null,
-    video:false,
-    audio:false,
+    video:true,
+    audio:true,
     myPeer: {} as Peer,
     
     // TODO: remove any Data Type from store

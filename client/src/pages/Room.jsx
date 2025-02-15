@@ -35,73 +35,84 @@ const Room = () => {
         setMessageInput('');
     };
 
-    useEffect(() => {
-        store.socket.on('update', socketFunctions.handleLeaveRoom);
-
-        store.socket.on('message', ({ message, name, socketId }) => {
-            store.setMessages((prev) => [...prev, { message, name, socketId }]);
-        });
-
-        return () => {
-            store.socket.off('update', socketFunctions.handleLeaveRoom);;
-            store.socket.off('room:message',({ message, name, socketId }) => {
-                setMessages((prev) => [...prev, { message, name, socketId }]);
-            });
-        };
-    }, [socketFunctions.handleLeaveRoom, store]);
-
     // create Peer & get mediaStream
-    useEffect(() => {
-        mediaFunctions.getUserStream({ audio:store.audio, video:store.video });
-        peerFunctions.createPeer();
-        return () => {
-            peerFunctions.destroyPeer();
-        }
-    }, [mediaFunctions, peerFunctions, store.audio, store.video]);
-
-    // receive call from peer
     useEffect(()=>{
-        peerFunctions.receivePeerCall();
-    },[peerFunctions, store])
+        mediaFunctions.getUserStream({ audio:store.audio, video:store.video }).then((stream) => {
+            const video = document.getElementById('video-self');
+            video.srcObject = stream;
+        });
+        peerFunctions.createPeer(store.room,store.username,store.audio,store.video);
+    },[]);
 
     useEffect(()=>{
         store.socket.on('join-room', socketFunctions.handleJoinRoom)
+        store.socket.on('user-disconnected', socketFunctions.handleLeaveRoom);
+        store.socket.on('user-toggle-stream', socketFunctions.toggleStream);
+        store.socket.on('user-toggle-stream', socketFunctions.toggleStream);
+        store.socket.on('message', ({ message, name, socketId }) => {
+            store.setMessages((prev) => [...prev, { message, name, socketId }]);
+        });
+        
         return(()=>{
             store.socket.off('join-room',socketFunctions.handleJoinRoom);
+            store.socket.off('user-disconnected', socketFunctions.handleLeaveRoom);
+            store.socket.off('user-toggle-stream', socketFunctions.toggleStream);
+            store.socket.off('user-toggle-stream', socketFunctions.toggleStream);
+            store.socket.off('room:message',({ message, name, socketId }) => {
+                setMessages((prev) => [...prev, { message, name, socketId }]);
+            });
         })
-    },[store.socket, socketFunctions.handleJoinRoom])
+    },[store.socket, socketFunctions.handleLeaveRoom, socketFunctions.handleJoinRoom, socketFunctions.handleGetUserDetails, store, socketFunctions.toggleStream])
 
     return (
         <div className='flex flex-col lg:flex-row w-[100dvw] h-[100dvh]'>
-            <div className='flex flex-col lg:w-[75%] bg-black'>
-                <div ref={videoContainerRef} className='flex flex-wrap justify-center items-center gap-1 w-full lg:h-[90%] bg-black rounded-md overflow-y-auto p-2'>
-                    {store.stream && <video src={store.stream} id="video-self" className="border border-black rounded-md" autoPlay playsInline muted></video>}
-                    {store.roomMembers.map((member) => (
-                        <video className='w-1/3 h-1/3' key={member.id} ref={(video) => { if (video) video.srcObject = member.incomingCall }} autoPlay playsInline></video>
+            <div className='flex flex-col h-full lg:w-[75%] bg-black'>
+                <div ref={videoContainerRef} className='grid grid-cols-2 lg:gird-cols-3 justify-center items-center gap-1 w-full h-[90%] bg-black rounded-md overflow-y-auto p-2'>
+                    {store.stream && (
+                            <div className='flex relative'>
+                                <video src={store.stream} id="video-self" className="border border-white rounded-md w-full h-full" autoPlay playsInline muted={store.audio}/>
+                                <div className='bg-black bg-opacity-15 text-white font-medium absolute bottom-0 w-full rounded-b px-1'>
+                                    {store.username} {store.audio && "| audio"} {store.video && "| video"}
+                                </div>
+                            </div>
+                        )
+                    }
+                    {store.roomMembers.map((member,index) => (
+                        <div className='flex relative' key={member.socketId}>
+                            <video ref={(video) => { if (video) video.srcObject = member.stream }} id="video-self" className="border border-white rounded-md w-full h-full" autoPlay playsInline muted={member.audio}/>                            
+                            <div className='bg-black bg-opacity-15 text-white font-medium absolute bottom-0 w-full rounded-b px-1'>
+                                {member.username} {member.audio && "| audio"} {member.video && "| video"}
+                            </div>
+                        </div>
                     ))}
                 </div>
                 <div className='flex w-full lg:h-[10%] p-2 bg-black'>
-                    <div className='bg-slate-200 rounded w-full h-full flex justify-center items-center p-2 gap-3'>
-                        <div onClick={() => copyText(store.room)} className='w-[15%] h-full flex justify-center items-center hover:underline cursor-pointer text-[15px] font-medium gap-2'>
+                    <div className='bg-slate-200 rounded w-full h-full flex justify-between lg:justify-center items-center p-2 gap-3'>
+                        <div onClick={() => copyText(store.room)} className='w-[15%] h-full flex justify-center items-center hover:underline cursor-pointer text-[12px] lg:text-[15px] font-medium gap-2'>
                             <Copy />
                             <span>Copy Joining Info</span>
                         </div>
-                        <div className='w-[70%] h-full flex justify-center items-center gap-3 p-1'>
-                            <button className='h-full aspect-square rounded-full bg-blue-800 p-3 text-white font-medium'><Camera /> </button>
-                            <button className='h-full aspect-square rounded-full bg-blue-800 p-3 text-white font-medium'><Mic /></button>
+                        <div className='w-1/3 lg:w-[70%] h-full flex justify-center items-center gap-3 p-1'>
+                            <button onClick={()=>mediaFunctions.toggleStream(store.peerId,store.audio,!store.video)} className='h-full aspect-square rounded-full bg-blue-800 p-3 text-white font-medium'>
+                                {store.video ? <Camera /> : <></>} 
+                            </button>
+                            <button onClick={()=>mediaFunctions.toggleStream(store.peerId,!store.audio,store.video)} className='h-full aspect-square rounded-full bg-blue-800 p-3 text-white font-medium'>
+                                {store.audio ? <Mic /> : <></>} 
+                                </button>
                             <button onClick={()=>{
                                 peerFunctions.disconnectPeerCall();
-                                navigate('/')
+                                navigate('/');
+                                window.location.reload();
                             }} className='h-full aspect-square rounded-full bg-red-800 p-3 text-white font-medium'><Call /></button>
                         </div>
-                        <div className='w-[15%] h-full flex gap-2 justify-center hover:underline cursor-pointer items-center text-[15px] font-medium'>
+                        <div className='w-[15%] h-full flex gap-2 justify-center hover:underline cursor-pointer items-center text-[12px] lg:text-[15px] font-medium'>
                             <span>Open Canvas</span>
                             <Canvas />
                         </div>
                     </div>
                 </div>
             </div>
-            <div className='flex flex-col lg:w-[25%] border'>
+            <div className='hidden lg:flex flex-col lg:w-[25%] border'>
                 <div className='flex flex-col w-full lg:h-[90%] border gap-4 p-1'>
                     {messages.map((data) => (
                         <div key={data.socketId + data.message} className='bg-slate-300 rounded p-3 flex flex-col gap-1'>

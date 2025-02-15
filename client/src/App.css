@@ -38,3 +38,8 @@ html * {
   background: rgb(0, 24, 111);
   color: #fff;
 }
+video {
+  transform: scaleX(-1);
+  -webkit-transform: scaleX(-1);
+  -moz-transform: scaleX(-1);
+}

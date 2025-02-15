@@ -7,18 +7,19 @@ const useSockets = () => {
 
     // when user joins a room   
   const handleJoinRoom = async ({socketId,name, peerId,audio,video}) => {
-    console.log("new user joined",peerId,name,socketId);
-    if(store.myPeer && store.stream){
-        console.log("store.myPeer",store.myPeer);
-        
+    if(store.myPeer && store.stream){        
         // this will trigger the call event on the other peer
-        const call = store.myPeer.call(peerId, store.stream); 
-
-        console.log("sending call",call)
+        console.log("calling handleJoinRoom")
+        const call = store.myPeer.call(peerId, store.stream, {
+          metadata: {
+              username: store.username,
+              audio:store.audio,
+              video:store.video,
+              socketId: store.socket.id,
+          },
+        });
+        console.log("sending metaData + stream for id",socketId,peerId)
         call.on('stream',(incomingStream:MediaStream)=>{
-            console.log(incomingStream)
-            console.log("incoming stream");
-            console.log("roomMembers at handleJoin",store.roomMembers);
             const temp:roomMemberType[] = [
                 ...store.roomMembers,
                 {
@@ -26,9 +27,10 @@ const useSockets = () => {
                     audio:audio,
                     video:video,
                     peerId:peerId,
+                    username:name,
+                    socketId
                 }
             ];
-            console.log("roomMembers after handleJoin",temp);
             store.setRoomMembers(temp);
         })
     }else{
@@ -37,23 +39,39 @@ const useSockets = () => {
   }
 
   // when user leaves a room
-  const handleLeaveRoom = ({peerId}) => {
+  const handleLeaveRoom = (res:{socketId:string,peerId:string,name:string}) => {
+    const {socketId,peerId,name} = res;
     const members = store.roomMembers;
-    const newMembers = members.filter(member => member.peerId !== peerId);
-    store.setRoomMembers(newMembers);
+    const newMembers = members.filter(member => member.socketId!==socketId);
+    console.log("newRoomMembers",newMembers)
+    store.setRoomMembers([...newMembers]);
+  }
+
+  const handleRoomMemberStream = (stream:MediaStream, audio:boolean,video:boolean) => {
+    stream.getTracks().forEach((track:MediaStreamTrack) => {
+      if (track.kind === "audio") {
+        track.enabled = audio;
+      } else if (track.kind === "video") {
+        track.enabled = video;
+      }
+    })
   }
 
   // toggle constraints of a stream
-  const toggleStream = ({peerId,audio,video}) => {
-    const members = store.roomMembers;
-    for(const member of members){
-        if(member.peerId === peerId){
-            member.audio = audio;
-            member.video = video;
+  const toggleStream = ({ socketId, peerId, audio, video }) => {
+    const members = store.roomMembers.map((member) => {
+        if (member.socketId === socketId) {
+            if (member.stream) {
+                handleRoomMemberStream(member.stream, audio, video);
+            }
+            return { ...member, audio, video };
         }
-    }
+        return member;
+    });
+
     store.setRoomMembers(members);
-}
+};
+
 
 
   return {

@@ -16,9 +16,11 @@ const Home = () => {
     },[mediaStreamFunction, navigate]);
     /* --------------- */
 
+    useEffect(()=>{
+      handleStream({audioToggle:audio,videoToggle:video});  
+    },[])
 
     const handleStream = ({audioToggle,videoToggle})=>{
-      console.log({audioToggle,videoToggle})
       const videoSrc = document.getElementById("video-self");
       mediaStreamFunction.getUserStream({audio:audioToggle,video:videoToggle}).then((stream)=>{videoSrc.srcObject = stream}).catch((err)=>console.log(err));
       console.log("setting stream")
@@ -43,8 +45,8 @@ const Home = () => {
     }
 
     return (
-      <div className={"flex w-[100dvw] h-[100dvh]"}> 
-        <div className="flex flex-col gap-3 w-[30%] h-full border bg-slate-100 justify-center items-center px-20">
+      <div className={"flex w-[100dvw] h-[100dvh] flex-col lg:flex-row"}> 
+        <div className="flex flex-col gap-3 w-full h-full lg:w-[30%] lg:h-full border bg-slate-100 justify-center items-center px-20">
             <video id="video-self" className="border border-black rounded-md" autoPlay muted={audio} playsInline></video>
             <div className="flex gap-3">
               <button onClick={()=>{
@@ -67,7 +69,7 @@ const Home = () => {
             <button onClick={()=>joinRoom()} className="px-3 py-1 rounded text-white bg-slate-700 hover:bg-opacity-90">Join Room</button>
 
         </div>
-        <div className="flex w-[70%] h-full border justify-center items-center">
+        <div className="hidden lg:flex lg:w-[70%] lg:h-full border justify-center items-center">
             <img src="/assets/bg-2.jpg" alt="video-call-illustration" className="w-full h-fit"/>
         </div>
       </div> 

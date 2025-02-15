@@ -6,7 +6,8 @@ export type roomMemberType = {
     audio:boolean,
     video:boolean,
     peerId:string,
-    socketId?:string
+    username:string,
+    socketId:string
 }
 
 export type UserStoreType = {
