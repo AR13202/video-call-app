@@ -70,7 +70,7 @@ const Room = () => {
                 <div ref={videoContainerRef} className='grid grid-cols-2 lg:gird-cols-3 justify-center items-center gap-1 w-full h-[90%] bg-black rounded-md overflow-y-auto p-2'>
                     {store.stream && (
                             <div className='flex relative'>
-                                <video src={store.stream} id="video-self" className="border border-white rounded-md w-full h-full" autoPlay playsInline muted={store.audio}/>
+                                <video src={store.stream} id="video-self" className="border border-white rounded-md w-full h-full" autoPlay playsInline muted={!store.audio}/>
                                 <div className='bg-black bg-opacity-15 text-white font-medium absolute bottom-0 w-full rounded-b px-1'>
                                     {store.username} {store.audio && "| audio"} {store.video && "| video"}
                                 </div>
@@ -79,7 +79,7 @@ const Room = () => {
                     }
                     {store.roomMembers.map((member,index) => (
                         <div className='flex relative' key={member.socketId}>
-                            <video ref={(video) => { if (video) video.srcObject = member.stream }} id="video-self" className="border border-white rounded-md w-full h-full" autoPlay playsInline muted={member.audio}/>                            
+                            <video ref={(video) => { if (video) video.srcObject = member.stream }} id="video-self" className="border border-white rounded-md w-full h-full" autoPlay playsInline muted={!member.audio}/>                            
                             <div className='bg-black bg-opacity-15 text-white font-medium absolute bottom-0 w-full rounded-b px-1'>
                                 {member.username} {member.audio && "| audio"} {member.video && "| video"}
                             </div>

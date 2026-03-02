@@ -7,7 +7,7 @@ const config = { iceServers: [{ urls: [
     "stun:stun1.l.google.com:19302",
     "stun:stun2.l.google.com:19302",
     "stun:global.stun.twilio.com:3478",
-] }] }
+]}]}
 
 let peerRef:Peer = {} as Peer;
 
